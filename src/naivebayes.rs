@@ -27,10 +27,10 @@ fn main() {
 
     let alpha = 1;
 
-    let (good_word_count, good_word_probabilities) = word_probabilities(good_messages.clone());
-    let (spam_word_count, spam_word_probabilities) = word_probabilities(spam_messages.clone());
-    println!("good_word_count: {}, good_word_probabilities: {:?}", good_word_count, good_word_probabilities);
-    println!("spam_word_count: {}, spam_word_probabilities: {:?}", spam_word_count, spam_word_probabilities);
+    let (good_word_count, good_word_likelihoods) = word_likelihoods(good_messages.clone());
+    let (spam_word_count, spam_word_likelihoods) = word_likelihoods(spam_messages.clone());
+    println!("good_word_count: {}, good_word_likelihoods: {:?}", good_word_count, good_word_likelihoods);
+    println!("spam_word_count: {}, spam_word_likelihoods: {:?}", spam_word_count, spam_word_likelihoods);
 
     let test_messages = vec![
         // "Dear Friend",
@@ -38,8 +38,8 @@ fn main() {
     ];
     for test_message in test_messages {
         let test_message_words = message_to_words(&test_message);
-        let test_good_probability = good_prior_probability * word_probabilities_product(alpha, &test_message_words, good_word_count, &good_word_probabilities);
-        let test_spam_probability = spam_prior_probability * word_probabilities_product(alpha, &test_message_words, spam_word_count, &spam_word_probabilities);
+        let test_good_probability = good_prior_probability * word_likelihoods_product(alpha, &test_message_words, good_word_count, &good_word_likelihoods);
+        let test_spam_probability = spam_prior_probability * word_likelihoods_product(alpha, &test_message_words, spam_word_count, &spam_word_likelihoods);
         println!(
             "result={}, good={}, spam={}, msg={}",
             if test_good_probability > test_spam_probability { "good" } else { "spam" },
@@ -54,7 +54,7 @@ fn message_to_words(message: &str) -> Vec<&str> {
     message.split(" ").filter(|s| s.len() > 0).collect()
 }
 
-fn word_probabilities(messages: Vec<&str>) -> (i32, HashMap<&str, f32>) {
+fn word_likelihoods(messages: Vec<&str>) -> (i32, HashMap<&str, f32>) {
     let mut word_counts: HashMap<&str, i32> = HashMap::new();
     let mut total_word_count = 0;
     for message in messages {
@@ -67,19 +67,19 @@ fn word_probabilities(messages: Vec<&str>) -> (i32, HashMap<&str, f32>) {
         }
     }
 
-    let mut probabilities: HashMap<&str, f32> = HashMap::new();
+    let mut likelihoods: HashMap<&str, f32> = HashMap::new();
     for (word, count) in word_counts {
-        probabilities.insert(word, count as f32 / total_word_count as f32);
+        likelihoods.insert(word, count as f32 / total_word_count as f32);
     }
-    (total_word_count, probabilities)
+    (total_word_count, likelihoods)
 }
 
-fn word_probabilities_product(alpha: i32, words: &Vec<&str>, count: i32, probabilities: &HashMap<&str, f32>) -> f32 {
-    let distinct_words_count = probabilities.len() as i32;
+fn word_likelihoods_product(alpha: i32, words: &Vec<&str>, count: i32, likelihoods: &HashMap<&str, f32>) -> f32 {
+    let distinct_words_count = likelihoods.len() as i32;
     let words_set: HashSet<&&str> = HashSet::from_iter(words.into_iter());
     let mut unknown_words_count = 0;
     for word in words_set {
-        if !probabilities.contains_key(word) {
+        if !likelihoods.contains_key(word) {
             unknown_words_count += 1;
         }
     }
@@ -89,8 +89,8 @@ fn word_probabilities_product(alpha: i32, words: &Vec<&str>, count: i32, probabi
     let mut running_probability = 1.0;
     for word in words {
         // Zero conditional probability problem
-        // running_probability *= probabilities.get(word).unwrap_or(&0.0);
-        let word_probability = probabilities.get(word).unwrap_or(&0.0);
+        // running_probability *= likelihoods.get(word).unwrap_or(&0.0);
+        let word_probability = likelihoods.get(word).unwrap_or(&0.0);
         let numerator = (word_probability * count as f32) + alpha as f32;
         let fixed_word_probability = numerator / denominator;
         // println!("p({} | .) = {}", word, fixed_word_probability);
